@@ -6,7 +6,7 @@ output: github_document
 
 ## Get the data
 
-```{r, echo = TRUE}
+```{r}
 # load useful packages
 library(tidyverse)
 
