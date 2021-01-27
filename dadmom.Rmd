@@ -26,7 +26,20 @@ library(tidyverse)
 library(rcfss)
 
 dadmom %>%
-pivot_longer(cols = -famid, names_to = "parent", values_to = "values", values_transform = list(values = as.character))
+#group_by(name) %>%
+pivot_longer(cols = -famid, names_to = "parent", values_to = "values", values_transform = list(values = as.character)) %>%
+   mutate(role = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
+  mutate(Name = case_when(parent == "named" ~ "name", parent == "namem" ~ "name")) %>%
+  #fill(gender) %>%
+  mutate(income = case_when(parent == "incd" ~ "inc", parent == "incm" ~ "inc")) %>%
+unite(type, Name, income, sep = "", na.rm = TRUE) %>%
+ # mutate(row = row_number()) %>%
+  select(famid, row, type, values) %>%
+  pivot_wider(names_from = type, values_from = values)
+
+
+
+
 
 
 pivot_longer(cols = c(named, namem), names_to = "parent", values_to = "name") %>%
