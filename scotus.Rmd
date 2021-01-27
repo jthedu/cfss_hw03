@@ -11,6 +11,8 @@ output: github_document
 library(tidyverse)
 library(readr)
 library(lubridate)
+library(ggthemes)
+library('scales')
 
 # load data
 scdb_case <- read_csv("data/scdb-case.csv")
@@ -35,34 +37,20 @@ scdb_vote <- read_csv("data/scdb-vote.csv")
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
 
 ```{r}
-#going be using scdb_case. need to look at majority vs minority votes (majority - minority = 1)
 scdb_case %>%
+  drop_na(term, majVotes, minVotes) %>%
+  group_by(term) %>%
   mutate(V_margin = majVotes-minVotes) %>%
-  #filter(V_margin == 1) %>%
-  #group_by(term) 
-#code a dummy var? where =1 if fulfill one-vote margin & =0 if don't?
-  #then sum those up by term/yr & divide by count(dummyvar)
-  
-%>%
-  count(V_margin) 
-  
-  mutate(percent = 
-      summarize %>%
-  ggplot(mapping = aes(x = term, y = margin)) +
-  geom_line()
-
-group_by(term)
-mutate(percent = (V_margin == 1)/(V_margin !== 1))
-  
-#recode term as a character?
-scdb_case %>%
-  mutate(V_margin = majVotes-minVotes) %>%
-  filter(V_margin == 1) %>% 
-  mutate(onevote = row_number()) %>%
-  glimpse()
-# 1,791 total cases decided by 1-vote margin
-
-# look at each yr, then calculate % of (margin = 1/ margin != 1)   
+  mutate(onevotelgl = (V_margin == 1)) %>%
+  summarize(
+    totalcases = n(),
+    onevote = mean(onevotelgl)
+  ) %>%
+ ggplot(mapping = aes(x = term, y = onevote)) +
+  geom_line() +
+  labs(title = "Percent of U.S. Supreme Court cases decided by 1-vote margin", x = "Term", y = "Percent of total cases decided", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent) +
+  theme_solarized()
 ```
 
 ## For justices [currently serving on the Supreme Court](https://www.supremecourt.gov/about/biographies.aspx), how often have they voted in the conservative direction in cases involving criminal procedure, civil rights, economic activity, and federal taxation?
