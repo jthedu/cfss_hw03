@@ -28,20 +28,30 @@ library(rcfss)
 dadmom %>%
 #group_by(name) %>%
 pivot_longer(cols = -famid, names_to = "parent", values_to = "values", values_transform = list(values = as.character)) %>%
-   mutate(role = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
+  ## mutate(role = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
   mutate(Name = case_when(parent == "named" ~ "name", parent == "namem" ~ "name")) %>%
   #fill(gender) %>%
   mutate(income = case_when(parent == "incd" ~ "inc", parent == "incm" ~ "inc")) %>%
 unite(type, Name, income, sep = "", na.rm = TRUE) %>%
  # mutate(row = row_number()) %>%
-  select(famid, row, type, values) %>%
-  pivot_wider(names_from = type, values_from = values)
+  mutate(role = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
+  fill(role) %>%
+  select(famid, role, type, values) %>%
+  #if i could add row # so that there are 6 rows....
+  pivot_wider(names_from = type, values_from = values) %>%
+  mutate(income = as.double(inc)) %>%
+  select(famid, role, name, income)
+
+
+#i mean, i got it, but it seems super circuitous. also, my inc is a character, not a double. had to switch back
 
 
 
-
-
-
+###incorrect & probs unhelpful
+  pivot_longer(cols = c(named, namem), names_to = "parent", values_to = "name") %>%
+  mutate(row = row_number()) %>%
+  pivot_wider(names_from = parent, values_from = name)
+#old stuff
 pivot_longer(cols = c(named, namem), names_to = "parent", values_to = "name") %>%
   mutate(parent = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
     ## maybe something like? mutate(income = case_when(parent == "dad" ~ contains()...
