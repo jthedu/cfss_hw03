@@ -22,7 +22,13 @@ dadmom
 ```{r}
 # write your code to tidy the data 
 
+library(tidyverse)
+library(rcfss)
+
 dadmom %>%
+pivot_longer(cols = -famid, names_to = "parent", values_to = "values", values_transform = list(values = as.character))
+
+
 pivot_longer(cols = c(named, namem), names_to = "parent", values_to = "name") %>%
   mutate(parent = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
     ## maybe something like? mutate(income = case_when(parent == "dad" ~ contains()...
