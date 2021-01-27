@@ -1,6 +1,6 @@
 ---
-title: "Tidying `dadmom`"
-author: "Your name"
+title: "HW3, pt. 1: Tidying `dadmom`"
+author: "Julia Du"
 output: github_document
 ---
 
@@ -20,7 +20,18 @@ dadmom
 # Tidied data
 
 ```{r}
-# write your code to tidy the data here
+# write your code to tidy the data 
+
+dadmom %>%
+pivot_longer(cols = c(named, namem), names_to = "parent", values_to = "name") %>%
+  mutate(parent = case_when(parent == "named" ~ "dad", parent == "namem" ~ "mom")) %>%
+  # mutate(income = case_when(parent == "dad" ~ contains()
+    
+    
+    
+  ##? dunno how to proceed from here
+  unite(income, incd, incm) %>%
+  
 ```
 
 ## Session info
