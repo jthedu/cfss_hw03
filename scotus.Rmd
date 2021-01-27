@@ -1,6 +1,6 @@
 ---
-title: "Exploring U.S. Supreme Court Decisions"
-author: "Your name"
+title: "HW 3, pt. 2: Exploring U.S. Supreme Court Decisions"
+author: "Julia Du"
 output: github_document
 ---
 
@@ -9,21 +9,60 @@ output: github_document
 ```{r}
 # load useful packages
 library(tidyverse)
+library(readr)
+library(lubridate)
 
 # load data
+scdb_case <- read_csv("data/scdb-case.csv")
+#View(scdb_case)
+#, col_types = cols(sctCite = col_character())
+#can docket be a character? soln for this 1st part leaves sctCite alone as a logical object
 
+scdb_vote <- read_csv("data/scdb-vote.csv")
+#View(scdb_vote)
 ```
 
 ## Recode variables as you find necessary
 
 ```{r}
+#does this mean parsing? do i only need to parse the variables that i'll be working w/?
+#also, i can't just drop the variables not relevant to HW 3, right?
+
+#term right now is a double...is that okay...
 
 ```
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
 
 ```{r}
+#going be using scdb_case. need to look at majority vs minority votes (majority - minority = 1)
+scdb_case %>%
+  mutate(V_margin = majVotes-minVotes) %>%
+  #filter(V_margin == 1) %>%
+  #group_by(term) 
+#code a dummy var? where =1 if fulfill one-vote margin & =0 if don't?
+  #then sum those up by term/yr & divide by count(dummyvar)
+  
+%>%
+  count(V_margin) 
+  
+  mutate(percent = 
+      summarize %>%
+  ggplot(mapping = aes(x = term, y = margin)) +
+  geom_line()
 
+group_by(term)
+mutate(percent = (V_margin == 1)/(V_margin !== 1))
+  
+#recode term as a character?
+scdb_case %>%
+  mutate(V_margin = majVotes-minVotes) %>%
+  filter(V_margin == 1) %>% 
+  mutate(onevote = row_number()) %>%
+  glimpse()
+# 1,791 total cases decided by 1-vote margin
+
+# look at each yr, then calculate % of (margin = 1/ margin != 1)   
 ```
 
 ## For justices [currently serving on the Supreme Court](https://www.supremecourt.gov/about/biographies.aspx), how often have they voted in the conservative direction in cases involving criminal procedure, civil rights, economic activity, and federal taxation?
@@ -31,6 +70,20 @@ library(tidyverse)
 Organize the resulting graph by justice in descending order of seniority. (Note that the chief justice is always considered the most senior member of the court, regardless of appointment date.)
 
 ```{r}
+# use levels to sort justices by descending seniority
+scdb_vote %>%
+  group_by(justiceName) %>%
+  filter(
+    justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
+  
+  #have to join this to the scdb_case data
+  #filter(issueArea %in% c(1, 2, 8, 12))
+
+
+mutate(seniority = factor(justiceName, levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")))
+
+#for each issueArea = 1, 2, 8, 12
+#looking for frequency of decisionDirection = 1
 
 ```
 
