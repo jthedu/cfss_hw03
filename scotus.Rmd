@@ -71,11 +71,11 @@ justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", 
 
 #idk idk
 scdb_vote %>%
-  mutate(alljust = distinct(justiceName)) %>%
-  mutate(seniorjust = factor(levels = justice_levels))
+  #mutate(alljust = distinct(justiceName)) %>%
+  #mutate(seniorjust = factor(levels = justice_levels))
 #  mutate(currentjust = 
 
-
+#actual good stuff that WORKS
 scdb_case %>%
   drop_na(issueArea) %>%
   group_by(issueArea) %>%
@@ -116,8 +116,6 @@ scdb_vote %>%
   group_by(justiceName) %>%
   filter(
     justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
-  #have to join this to the scdb_case data
-  #filter(issueArea %in% c(1, 2, 8, 12))
 ```
 
 ## In each term, how many of the term's published decisions (decided after oral arguments) were announced in a given month?
