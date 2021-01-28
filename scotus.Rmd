@@ -67,7 +67,7 @@ issueArea_names <- c(
                     `8` = "Economic Activity",
                     `12` = "Federal Taxation"
                                         )
-justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett") 
+#justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett") 
 
 #idk idk
 scdb_vote %>%
@@ -93,7 +93,8 @@ scdb_case %>%
     totalvotes = n(),
     conserv = mean(conservlgl)
   ) %>%
-  ggplot(mapping = aes(x = conserv, y = reorder(justiceName, seniorjust))) + ###FIGURE OUT HOW TO ORDER BY SENIORITY
+  ggplot(mapping = aes(x = conserv, y = justiceName)) + 
+  ###FIGURE OUT HOW TO ORDER BY SENIORITY y = reorder(justiceName, seniorjust)
   geom_bar(stat = 'identity') +
   labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = " ", caption = "Source: The Supreme Court Database") +
  scale_x_continuous(labels = scales::percent) +
@@ -127,6 +128,7 @@ scdb_vote %>%
 ## Which justices are most likely to agree with with the Court's declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court's outcome declares something unconstitutional.
 
 ```{r}
+#gives me a graph but isn't colored
 scdb_case %>%
   drop_na(declarationUncon) %>%
   group_by(declarationUncon) %>%
@@ -153,6 +155,36 @@ scdb_case %>%
  # scale_fill_manual("legend", values = c("A" = "black", "B" = "orange", "C" = "blue"))
   theme_solarized()
   
+# doesn't work - end up having bars that are out of order
+unconColorBar = scdb_case %>%
+  drop_na(declarationUncon) %>%
+  group_by(declarationUncon) %>%
+  filter(
+    declarationUncon %in% c(2:4)
+    ) %>%
+  select(caseIssuesId, declarationUncon) %>%
+   right_join(scdb_vote, by = "caseIssuesId") %>%
+   group_by(justiceName) %>%
+  drop_na(majority, justiceName, declarationUncon) %>%  
+  mutate(yes_unconlgl = (majority == 2)) %>%
+  summarize(
+    vote_uncon = n(),
+    yes_uncon = mean(yes_unconlgl)
+  ) %>%
+  filter(vote_uncon >= 30) %>%
+  arrange(-yes_uncon) %>%
+  slice(1:10, 71:80)
+
+uncon_colors = c("top 10" = "red", "bottom 10" = "blue")
+
+ggplot() +
+  geom_bar(data = slice(unconColorBar, 1:10), stat = 'identity', mapping = aes(x = yes_uncon, y = justiceName, fill = "top 10")) +
+    geom_bar(data = slice(unconColorBar, 11:20), stat = 'identity', mapping = aes(x = yes_uncon, y = justiceName, fill = "bottom 10")) +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality, Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", caption = "Source: The Supreme Court Database") 
+ # scale_fill_manual("legend", values = c("A" = "black", "B" = "orange", "C" = "blue"))
+  
+
 #unsure how to color top 10 & bottom 10 differently
 #could try making new var for top 10 & bottom 10...but think pipe won't work 
 #ideally, find a way to make (fill = new var) that distinguishes btwn top 10 & bottom 10. row #?
@@ -220,7 +252,7 @@ ggplot(data = Scalia_2lines) +
   geom_line(mapping = aes(x = term, y = Scalia_maj)) +
   geom_line(mapping = aes(x = term, y = dis_Scalia_maj)) 
 
-#how to add legend
+#w/ 2 dataframes
 Scaliacolors <- c("All decisions" = "red", "Non-unanimous decisions" = "blue")
 
 ggplot() +
@@ -228,7 +260,9 @@ ggplot() +
   geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj, color = "Non-unanimous decisions")) +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
   scale_color_manual(values = Scaliacolors) +
- scale_y_continuous(labels = scales::percent)  
+ scale_y_continuous(labels = scales::percent) +
+  theme_clean() +
+  theme(legend.position="bottom")
   
 
   ### should try to figure out way using melt (so only 1 data frame)
@@ -241,12 +275,39 @@ ggplot() +
 ## In each term, what percentage of cases were decided in the conservative direction?
 
 ```{r}
-
+scdb_case %>%
+  drop_na(term, decisionDirection) %>%
+  group_by(term) %>%
+  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
+  summarize(
+    totalconserv_cases = n(),
+    conserv_case = mean(conserv_caselgl)
+  ) %>%
+ ggplot(mapping = aes(x = term, y = conserv_case)) +
+  geom_line() +
+  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent) +
+  theme_solarized()
 ```
 
 ## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
 
 ```{r}
+scdb_case %>%
+  drop_na(term, decisionDirection, chief) %>%
+  group_by(term, chief) %>%
+  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
+  summarize(
+    totalconserv_cases = n(),
+    conserv_case = mean(conserv_caselgl)
+  ) %>%
+ ggplot(mapping = aes(x = term, y = conserv_case)) +
+  geom_line() +
+ facet_wrap(chief ~ .) +
+  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent)
+
+#need to order justices by seniority. factor? or use justice (i.e. their ID #) & combine?
 
 ```
 
