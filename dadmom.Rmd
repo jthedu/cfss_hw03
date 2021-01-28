@@ -42,7 +42,6 @@ unite(type, Name, income, sep = "", na.rm = TRUE) %>%
   mutate(income = as.double(inc)) %>%
   select(famid, role, name, income)
 
-
 #i mean, i got it, but it seems super circuitous. also, my inc is a character, not a double. had to switch back
 
 

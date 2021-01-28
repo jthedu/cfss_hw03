@@ -145,6 +145,7 @@ scdb_case %>%
   filter(vote_uncon >= 30) %>%
   arrange(-yes_uncon) %>%
   slice(1:10, 71:80) %>%
+  #do i change something w/ slice here?
   ggplot(mapping = aes(x = yes_uncon, y = justiceName)) +
   geom_bar(stat = 'identity') +
   scale_x_continuous(labels = scales::percent) +
@@ -191,7 +192,7 @@ alldecisions = scdb_vote %>%
   summarize(
     totalScalia_maj = n(),
     Scalia_maj = mean(Scalia_majlgl)
-  )  
+  )
 
 nonall_decisions =  
   scdb_case %>%
@@ -209,18 +210,32 @@ nonall_decisions =
     dis_totalScalia_maj = n(),
     dis_Scalia_maj = mean(dis_Scalia_majlgl)
   )
-  
- 
+
+Scalia_2lines = alldecisions %>%
+  inner_join(nonall_decisions, by = "term") %>%
+  select(-contains("total"))
+
+# i still dunno how to add color to this
+ggplot(data = Scalia_2lines) +
+  geom_line(mapping = aes(x = term, y = Scalia_maj)) +
+  geom_line(mapping = aes(x = term, y = dis_Scalia_maj)) 
+
+#how to add legend
+Scaliacolors <- c("All decisions" = "red", "Non-unanimous decisions" = "blue")
+
 ggplot() +
-  geom_line(data = alldecisions, mapping = aes(x = term, y = Scalia_maj)) +
-  geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj)) +
-  scale_colour_manual("", breaks = c("All decisions", "TempMedia", "Non-unanimous decisions"),
-                      values = c("red", "blue")) +
-  labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+  geom_line(data = alldecisions, mapping = aes(x = term, y = Scalia_maj, color = "All decisions")) +
+  geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj, color = "Non-unanimous decisions")) +
+  labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
+  scale_color_manual(values = Scaliacolors) +
  scale_y_continuous(labels = scales::percent)  
   
+
   ### should try to figure out way using melt (so only 1 data frame)
 # currently unable to get 2 diff colors, so try it out later
+#  scale_colour_manual("", breaks = c("All decisions", "Non-unanimous decisions"),
+#                      values = c("red", "blue")) +
+
 ```
 
 ## In each term, what percentage of cases were decided in the conservative direction?
