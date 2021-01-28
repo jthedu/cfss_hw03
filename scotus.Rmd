@@ -13,6 +13,7 @@ library(readr)
 library(lubridate)
 library(ggthemes)
 library('scales')
+library(forcats)
 
 # load data
 scdb_case <- read_csv("data/scdb-case.csv")
@@ -58,6 +59,23 @@ scdb_case %>%
 Organize the resulting graph by justice in descending order of seniority. (Note that the chief justice is always considered the most senior member of the court, regardless of appointment date.)
 
 ```{r}
+require(forcats)
+
+issueArea_names <- c(
+                    `1` = "Criminal Procedure",
+                    `2` = "Civil Rights",
+                    `8` = "Economic Activity",
+                    `12` = "Federal Taxation"
+                                        )
+justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett") 
+
+#idk idk
+scdb_vote %>%
+  mutate(alljust = distinct(justiceName)) %>%
+  mutate(seniorjust = factor(levels = justice_levels))
+#  mutate(currentjust = 
+
+
 scdb_case %>%
   drop_na(issueArea) %>%
   group_by(issueArea) %>%
@@ -66,43 +84,40 @@ scdb_case %>%
     ) %>%
   select(caseIssuesId, issueArea) %>%
    right_join(scdb_vote, by = "caseIssuesId") %>%
-  # select(caseIssuesId, direction, justice, justiceName, issueArea) %>%
   group_by(justiceName, issueArea) %>%
-  filter(
+   filter(
     justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
   drop_na(direction, issueArea) %>%  ##CAREFUL -- check on why you're getting NAs from issueArea
   mutate(conservlgl = (direction == 1)) %>%
-  #group_by(issueArea) %>% --> NEED to group by justiceName, then again by issueArea
   summarize(
     totalvotes = n(),
     conserv = mean(conservlgl)
-  )
+  ) %>%
+  ggplot(mapping = aes(x = conserv, y = reorder(justiceName, seniorjust))) + ###FIGURE OUT HOW TO ORDER BY SENIORITY
+  geom_bar(stat = 'identity') +
+  labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = " ", caption = "Source: The Supreme Court Database") +
+ scale_x_continuous(labels = scales::percent) +
+  facet_wrap(issueArea ~ ., labeller = as_labeller(issueArea_names)) +
+  theme_solarized()
 
 
-#or maybe only grouping by issues after all & then using facet(JusticeName)?  
+#or maybe only grouping by issues after all & then using facet(JusticeName)? would that mean i have to undo the summarize bit?
+ggplot(mapping = aes(x = conserv, y = issueArea)) + ###FIGURE OUT HOW TO ORDER BY SENIORITY
+  geom_bar(stat = 'identity') +
+  labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", caption = "Source: The Supreme Court Database") +
+ scale_x_continuous(labels = scales::percent) +
+  facet_wrap(justiceName ~ ., labeller = as_labeller(issueArea_names)) +
+  theme_solarized()
+#this above was my attempt at making a graph that was faceted by justice - it didn't work. maybe cuz i'd have to summarize in a diff way (i.e. issueArea, then justiceName). do i have to make all these graphs
 
 #may want to create factor of justices 
-
 # use levels to sort justices by descending seniority
 scdb_vote %>%
   group_by(justiceName) %>%
   filter(
     justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
-  
   #have to join this to the scdb_case data
   #filter(issueArea %in% c(1, 2, 8, 12))
-
-just_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")
-#FYI won't have any entries for ACBarrett
-scdb_vote %>%
-mutate(senior = factor(justiceName, levels = just_levels))
-
-
-mutate(seniority = factor(justiceName, levels = just_levels))
-
-#for each issueArea = 1, 2, 8, 12
-#looking for frequency of decisionDirection = 1
-
 ```
 
 ## In each term, how many of the term's published decisions (decided after oral arguments) were announced in a given month?
