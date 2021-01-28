@@ -127,7 +127,32 @@ scdb_vote %>%
 ## Which justices are most likely to agree with with the Court's declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court's outcome declares something unconstitutional.
 
 ```{r}
-
+scdb_case %>%
+  drop_na(declarationUncon) %>%
+  group_by(declarationUncon) %>%
+  filter(
+    declarationUncon %in% c(2:4)
+    ) %>%
+  select(caseIssuesId, declarationUncon) %>%
+   right_join(scdb_vote, by = "caseIssuesId") %>%
+   group_by(justiceName) %>%
+  drop_na(majority, justiceName, declarationUncon) %>%  
+  mutate(yes_unconlgl = (majority == 2)) %>%
+  summarize(
+    vote_uncon = n(),
+    yes_uncon = mean(yes_unconlgl)
+  ) %>%
+  filter(vote_uncon >= 30) %>%
+  arrange(-yes_uncon) %>%
+  slice(1:10, 71:80) %>%
+  ggplot(mapping = aes(x = yes_uncon, y = justiceName)) +
+  geom_bar(stat = 'identity') +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality, Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", caption = "Source: The Supreme Court Database") +
+ # scale_fill_manual("legend", values = c("A" = "black", "B" = "orange", "C" = "blue"))
+  theme_solarized()
+  
+#unsure how to color top 10 & bottom 10 differently
 ```
 
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
