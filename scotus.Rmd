@@ -153,18 +153,74 @@ scdb_case %>%
   theme_solarized()
   
 #unsure how to color top 10 & bottom 10 differently
+#could try making new var for top 10 & bottom 10...but think pipe won't work 
+#ideally, find a way to make (fill = new var) that distinguishes btwn top 10 & bottom 10. row #?
 ```
 
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
 
 ```{r}
-
+scdb_vote %>%
+    filter(
+    justiceName == "AScalia"
+    ) %>%
+  group_by(term) %>%
+  drop_na(majority, justiceName, term) %>%  
+  mutate(Scalia_majlgl = (majority == 2)) %>%
+  summarize(
+    totalScalia_maj = n(),
+    Scalia_maj = mean(Scalia_majlgl)
+  ) %>%
+ ggplot(mapping = aes(x = term, y = Scalia_maj)) +
+  geom_line() +
+  labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent) +
+  theme_solarized()
 ```
 
 ## Create a graph similar to above that adds a second component which compares the percentage for all cases versus non-unanimous cases (i.e. there was at least one dissenting vote)
 
 ```{r}
+alldecisions = scdb_vote %>%
+    filter(
+    justiceName == "AScalia"
+    ) %>%
+  group_by(term) %>%
+  drop_na(majority, justiceName, term) %>%  
+  mutate(Scalia_majlgl = (majority == 2)) %>%
+  summarize(
+    totalScalia_maj = n(),
+    Scalia_maj = mean(Scalia_majlgl)
+  )  
 
+nonall_decisions =  
+  scdb_case %>%
+  drop_na(minVotes) %>%
+  filter(minVotes != "0") %>%
+  select(caseIssuesId, minVotes) %>%
+  right_join(scdb_vote, by = "caseIssuesId") %>%
+    filter(
+    justiceName == "AScalia"
+    ) %>%
+  group_by(term) %>%
+  drop_na(majority, justiceName, term, minVotes) %>%  
+  mutate(dis_Scalia_majlgl = (majority == 2)) %>%
+  summarize(
+    dis_totalScalia_maj = n(),
+    dis_Scalia_maj = mean(dis_Scalia_majlgl)
+  )
+  
+ 
+ggplot() +
+  geom_line(data = alldecisions, mapping = aes(x = term, y = Scalia_maj)) +
+  geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj)) +
+  scale_colour_manual("", breaks = c("All decisions", "TempMedia", "Non-unanimous decisions"),
+                      values = c("red", "blue")) +
+  labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent)  
+  
+  ### should try to figure out way using melt (so only 1 data frame)
+# currently unable to get 2 diff colors, so try it out later
 ```
 
 ## In each term, what percentage of cases were decided in the conservative direction?
