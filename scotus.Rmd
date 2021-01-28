@@ -58,6 +58,31 @@ scdb_case %>%
 Organize the resulting graph by justice in descending order of seniority. (Note that the chief justice is always considered the most senior member of the court, regardless of appointment date.)
 
 ```{r}
+scdb_case %>%
+  drop_na(issueArea) %>%
+  group_by(issueArea) %>%
+  filter(
+    issueArea %in% c(1, 2, 8, 12)
+    ) %>%
+  select(caseIssuesId, issueArea) %>%
+   right_join(scdb_vote, by = "caseIssuesId") %>%
+  # select(caseIssuesId, direction, justice, justiceName, issueArea) %>%
+  group_by(justiceName, issueArea) %>%
+  filter(
+    justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
+  drop_na(direction, issueArea) %>%  ##CAREFUL -- check on why you're getting NAs from issueArea
+  mutate(conservlgl = (direction == 1)) %>%
+  #group_by(issueArea) %>% --> NEED to group by justiceName, then again by issueArea
+  summarize(
+    totalvotes = n(),
+    conserv = mean(conservlgl)
+  )
+
+
+#or maybe only grouping by issues after all & then using facet(JusticeName)?  
+
+#may want to create factor of justices 
+
 # use levels to sort justices by descending seniority
 scdb_vote %>%
   group_by(justiceName) %>%
@@ -67,8 +92,13 @@ scdb_vote %>%
   #have to join this to the scdb_case data
   #filter(issueArea %in% c(1, 2, 8, 12))
 
+just_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")
+#FYI won't have any entries for ACBarrett
+scdb_vote %>%
+mutate(senior = factor(justiceName, levels = just_levels))
 
-mutate(seniority = factor(justiceName, levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")))
+
+mutate(seniority = factor(justiceName, levels = just_levels))
 
 #for each issueArea = 1, 2, 8, 12
 #looking for frequency of decisionDirection = 1
