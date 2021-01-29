@@ -113,25 +113,23 @@ ggplot(mapping = aes(x = conserv, y = issueArea)) + ###FIGURE OUT HOW TO ORDER B
 ```{r}
 scotus_calendar = c("Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep")
 
-#filter for only after oral args 
-#fct_shift
-
 scdb_case %>%
   mutate(date_parsed = mdy(dateDecision)) %>%
   mutate(month_announce = month(date_parsed, label = TRUE)) %>%
-  drop_na(term, month_announce) %>%
+  drop_na(term, month_announce, decisionType) %>%
+  filter(decisionType %in% c(1, 6, 7)) %>% #filtering only for cases that were orally argued
   group_by(term, month_announce) %>%
   count(month_announce) %>%
   mutate(month_announce = factor(month_announce, levels = scotus_calendar)) %>%
   ggplot() +
-    geom_boxplot(mapping = aes(x = n, y = fct_rev(month_announce)))
-
+    geom_boxplot(mapping = aes(x = n, y = fct_rev(month_announce))) +
+  labs(title = "U.S. Supreme Court", subtitle = "Number of decisions announced post-oral arguments per month, by term", x = "Number of decisions announced in a term-month", y = "", caption = "Source: The Supreme Court Database") +
+  theme_solarized()
 ```
 
 ## Which justices are most likely to agree with with the Court's declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court's outcome declares something unconstitutional.
 
 ```{r}
-#gives me the right graph but isn't colored
 scdb_case %>%
   drop_na(declarationUncon) %>%
   group_by(declarationUncon) %>%
@@ -150,9 +148,8 @@ scdb_case %>%
   filter(vote_uncon >= 30) %>%
   arrange(-yes_uncon) %>%
   slice(1:10, 71:80) %>%
-  #do i change something w/ slice here? ASK FOR HELP HERE - HOW TO GET DIFF COLORS (SLICE INTO DIFF TABLES? HOW TO DO SO IN PIPE?)
-  mutate(type = ifelse(yes_uncon>0.90, "top", "bottom")) %>% #- YUP ASK FOR HELP HERE
-  ggplot(mapping = aes(x = yes_uncon, y = fct_reorder(justiceName, .x = yes_uncon), fill = type)) + #would add fill = type to get color if mutate above worked
+  mutate(type = ifelse(yes_uncon>0.90, "top", "bottom")) %>% 
+  ggplot(mapping = aes(x = yes_uncon, y = fct_reorder(justiceName, .x = yes_uncon), fill = type)) +
   geom_col() +
   scale_x_continuous(labels = scales::percent) +
   labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality \n Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", y = "", caption = "Source: The Supreme Court Database") +
@@ -221,15 +218,6 @@ nonall_decisions =
     dis_Scalia_maj = mean(dis_Scalia_majlgl)
   )
 
-Scalia_2lines = alldecisions %>%
-  inner_join(nonall_decisions, by = "term") %>%
-  select(-contains("total"))
-
-# i still dunno how to add color to this
-ggplot(data = Scalia_2lines) +
-  geom_line(mapping = aes(x = term, y = Scalia_maj)) +
-  geom_line(mapping = aes(x = term, y = dis_Scalia_maj)) 
-
 #w/ 2 dataframes
 Scaliacolors <- c("All decisions" = "red", "Non-unanimous decisions" = "blue")
 
@@ -241,11 +229,10 @@ ggplot() +
  scale_y_continuous(labels = scales::percent) +
   theme_clean() +
   theme(legend.position="bottom")
-  
-
 ```
-```{coloring Scalia}
-alldecisions = scdb_vote %>%
+```{r}
+### this is me adding another chunk of R code to try things out!!!
+alldecisions1 = scdb_vote %>%
     filter(
     justiceName == "AScalia"
     ) %>%
@@ -253,11 +240,11 @@ alldecisions = scdb_vote %>%
   drop_na(majority, justiceName, term) %>%  
   mutate(Scalia_majlgl = (majority == 2)) %>%
   summarize(
-    totalScalia_maj = n(),
+ #   totalScalia_maj = n(),
     Scalia_maj = mean(Scalia_majlgl)
-  )
+  ) 
 
-nonall_decisions =  
+nonall_decisions1 =  
   scdb_case %>%
   drop_na(minVotes) %>%
   filter(minVotes != "0") %>%
@@ -270,36 +257,40 @@ nonall_decisions =
   drop_na(majority, justiceName, term, minVotes) %>%  
   mutate(dis_Scalia_majlgl = (majority == 2)) %>%
   summarize(
-    dis_totalScalia_maj = n(),
+#    dis_totalScalia_maj = n(),
     dis_Scalia_maj = mean(dis_Scalia_majlgl)
   ) 
 
-Scalia_2lines = alldecisions %>%
-  inner_join(nonall_decisions, by = "term") %>%
-  select(-contains("total")) %>%
-  mutate(type = ifelse())
+# single dataframe
+Scalia_2lines <- alldecisions1 %>%
+  inner_join(nonall_decisions1, by = "term") %>%
+  pivot_longer(cols = c(Scalia_maj, dis_Scalia_maj), names_to = "type", values_to = "percentage") 
 
-# i still dunno how to add color to this
-ggplot(data = Scalia_2lines) +
-  geom_line(mapping = aes(x = term, y = Scalia_maj)) +
-  geom_line(mapping = aes(x = term, y = dis_Scalia_maj)) 
-
-#w/ 2 dataframes
-Scaliacolors <- c("All decisions" = "red", "Non-unanimous decisions" = "blue")
-
-ggplot() +
-  geom_line(data = alldecisions, mapping = aes(x = term, y = Scalia_maj, color = "All decisions")) +
-  geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj, color = "Non-unanimous decisions")) +
+ggplot(data = Scalia_2lines, mapping = aes(x = term, y = percentage, color = type)) +
+  geom_line() +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
-  scale_color_manual(values = Scaliacolors) +
  scale_y_continuous(labels = scales::percent) +
-  theme_clean() +
+  scale_color_discrete(labels = c("Non-unanimous cases", "All cases")) +
+   theme_clean() +
+  theme(legend.position="bottom")
+
+#piped - same as above, just w/ pipe
+alldecisions1 %>%
+  inner_join(nonall_decisions1, by = "term") %>%
+  pivot_longer(cols = c(Scalia_maj, dis_Scalia_maj), names_to = "type", values_to = "percentage") %>%
+ggplot(mapping = aes(x = term, y = percentage, color = type)) +
+  geom_line() +
+  labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
+ scale_y_continuous(labels = scales::percent) +
+  scale_color_discrete(labels = c("Non-unanimous cases", "All cases")) +
+   theme_clean() +
   theme(legend.position="bottom")
 ```
 
 ## In each term, what percentage of cases were decided in the conservative direction?
 
 ```{r}
+#this 1st chunk is all i need for this q
 scdb_case %>%
   drop_na(term, decisionDirection) %>%
   group_by(term) %>%
@@ -312,12 +303,45 @@ scdb_case %>%
   geom_line() +
   labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
  scale_y_continuous(labels = scales::percent) +
-  theme_solarized
+  theme_solarized()
+```
 
-#trying to set up for last q's facet
+## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
+
+```{r}
+chief_levels = c("Jay", "Rutledge", "Ellsworth", "Marshall", "Taney", "Chase", "Waite", "Fuller", "White", "Taft", "Hughes", "Stone", "Vinson", "Warren", "Burger", "Rehnquist", "Roberts") 
+
+#basic graph (only see justice's individual terms)
+scdb_case %>%
+  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
+  drop_na(term, decisionDirection, Orderchief) %>%
+   group_by(term, Orderchief) %>%
+  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
+  summarize(
+    #totalconserv_cases = n(),
+    conserv_case = mean(conserv_caselgl, na.rm = TRUE)
+    ) %>% 
+  ggplot(mapping = aes(x = term, y = conserv_case)) +
+  geom_line() +
+ facet_wrap(Orderchief ~ .) +
+  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent)
+
+#summarize mean method - works either way scdb_case %>%
+  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
+  drop_na(term, decisionDirection, Orderchief) %>%
+   group_by(term, Orderchief) %>%
+    mutate(Recode_decDirect = ifelse(decisionDirection != "1", 0, 1)) %>% #do this != to ensure we account for unspecified
+    summarize(
+#    totalconserv_cases = n(),
+    conserv_case = mean(Recode_decDirect, na.rm = TRUE)
+  )
+### CAN USE AS BASE FOR SWITCHING OTHER THINGS TO RECODING IF YOU WANT
+  
+#facet graph (with opaque all terms)
 fullchief_facet = scdb_case %>%
   drop_na(term, decisionDirection) %>%
-  group_by(term) %>%
+  group_by(term, chief) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
   summarize(
     totalconserv_cases = n(),
@@ -330,56 +354,19 @@ trychief_facet = scdb_case %>%
   drop_na(term, decisionDirection, Orderchief) %>%
    group_by(term, Orderchief) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
-  #drop_na(conserv_caselgl) %>% #unnecessary?
   summarize(
     totalconserv_cases = n(),
     conserv_case = mean(conserv_caselgl, na.rm = TRUE)
   )
 
-#get error. :/ 
 ggplot() +
-  geom_line(data = trychief_facet, mapping = aes(x = term, y = conserv_case)) +
- facet_wrap(Orderchief ~ .) +
-  geom_line(data = fullchief_facet, mapping = aes(x = term, y = conserv_case1, color = "red")) %>%
- scale_y_continuous(labels = scales::percent)
- 
+ geom_line(data = fullchief_facet, mapping = aes(x = term, y = conserv_case1), alpha = 0.1) +
+    geom_line(data = trychief_facet, mapping = aes(x = term, y = conserv_case), color = "red") +
+  facet_wrap(Orderchief ~ .) +
  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
-
-```
-
-## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
-
-```{r}
-chief_levels = c("Jay", "Rutledge", "Ellsworth", "Marshall", "Taney", "Chase", "Waite", "Fuller", "White", "Taft", "Hughes", "Stone", "Vinson", "Warren", "Burger", "Rehnquist", "Roberts") 
-
-#this def gives a seemingly ok graph (zoom in on values)
-scdb_case %>%
-  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
-  #mutate(Recode_decDirect = ifelse(decisionDirection == "2", 0, 1)) %>%
-  drop_na(term, decisionDirection, Orderchief) %>%
-   group_by(term, Orderchief) %>%
-  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
-  #drop_na(conserv_caselgl) %>% #unnecessary?
-  summarize(
-    #totalconserv_cases = n(),
-    conserv_case = mean(conserv_caselgl, na.rm = TRUE)
-  ) %>% ggplot(mapping = aes(x = term, y = conserv_case)) +
-  geom_line() +
- facet_wrap(Orderchief ~ .) +
-  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent)
-
-
-#trying summarize mean - getting diff % values...idk. totalconserv_cases is same w/ both methods tho
-scdb_case %>%
-  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
-  drop_na(term, decisionDirection, Orderchief) %>%
-   group_by(term, Orderchief) %>%
-    mutate(Recode_decDirect = ifelse(decisionDirection != "1", 0, 1)) %>% #if it's liberal, it's 0. want if it's not conservative (aka liberal AND unspecficied), it's =
-    summarize(
-#    totalconserv_cases = n(),
-    conserv_case = mean(Recode_decDirect, na.rm = TRUE)
-  )
+   scale_y_continuous(labels = scales::percent) +
+  theme_clean() +
+  theme(legend.position = "none")
 
 ```
 
