@@ -28,11 +28,8 @@ scdb_vote <- read_csv("data/scdb-vote.csv")
 ## Recode variables as you find necessary
 
 ```{r}
-#does this mean parsing? do i only need to parse the variables that i'll be working w/?
-#also, i can't just drop the variables not relevant to HW 3, right?
-
-#term right now is a double...is that okay...
-
+scdb_vote %>%
+mutate(recode_direction = direction-1)
 ```
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
@@ -52,6 +49,8 @@ scdb_case %>%
   labs(title = "Percent of U.S. Supreme Court cases decided by 1-vote margin", x = "Term", y = "Percent of total cases decided", caption = "Source: The Supreme Court Database") +
  scale_y_continuous(labels = scales::percent) +
   theme_solarized()
+
+#could ask abt faster way to do this...but this does give me what i need
 ```
 
 ## For justices [currently serving on the Supreme Court](https://www.supremecourt.gov/about/biographies.aspx), how often have they voted in the conservative direction in cases involving criminal procedure, civil rights, economic activity, and federal taxation?
@@ -67,13 +66,7 @@ issueArea_names <- c(
                     `8` = "Economic Activity",
                     `12` = "Federal Taxation"
                                         )
-#justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett") 
-
-#idk idk
-scdb_vote %>%
-  #mutate(alljust = distinct(justiceName)) %>%
-  #mutate(seniorjust = factor(levels = justice_levels))
-#  mutate(currentjust = 
+justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh") 
 
 #actual good stuff that WORKS
 scdb_case %>%
@@ -84,22 +77,25 @@ scdb_case %>%
     ) %>%
   select(caseIssuesId, issueArea) %>%
    right_join(scdb_vote, by = "caseIssuesId") %>%
-  group_by(justiceName, issueArea) %>%
+mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delete if this doesn't work
+    group_by(OrderjusticeName, issueArea) %>%
    filter(
-    justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
+    OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")) %>%
   drop_na(direction, issueArea) %>%  ##CAREFUL -- check on why you're getting NAs from issueArea
-  mutate(conservlgl = (direction == 1)) %>%
+      mutate(conservlgl = (direction == 1)) %>%
   summarize(
     totalvotes = n(),
     conserv = mean(conservlgl)
   ) %>%
-  ggplot(mapping = aes(x = conserv, y = justiceName)) + 
-  ###FIGURE OUT HOW TO ORDER BY SENIORITY y = reorder(justiceName, seniorjust)
+  ggplot(mapping = aes(x = conserv, y = fct_rev(OrderjusticeName))) + 
   geom_bar(stat = 'identity') +
   labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = " ", caption = "Source: The Supreme Court Database") +
  scale_x_continuous(labels = scales::percent) +
   facet_wrap(issueArea ~ ., labeller = as_labeller(issueArea_names)) +
   theme_solarized()
+
+
+## NORMALLY JOIN DATASETS AS FIRST STEP!!! then filter, group, summarize. would've done lines 79 & 86 first
 
 
 #or maybe only grouping by issues after all & then using facet(JusticeName)? would that mean i have to undo the summarize bit?
@@ -110,13 +106,6 @@ ggplot(mapping = aes(x = conserv, y = issueArea)) + ###FIGURE OUT HOW TO ORDER B
   facet_wrap(justiceName ~ ., labeller = as_labeller(issueArea_names)) +
   theme_solarized()
 #this above was my attempt at making a graph that was faceted by justice - it didn't work. maybe cuz i'd have to summarize in a diff way (i.e. issueArea, then justiceName). do i have to make all these graphs
-
-#may want to create factor of justices 
-# use levels to sort justices by descending seniority
-scdb_vote %>%
-  group_by(justiceName) %>%
-  filter(
-    justiceName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh", "ACBarrett")) %>%
 ```
 
 ## In each term, how many of the term's published decisions (decided after oral arguments) were announced in a given month?
@@ -128,17 +117,17 @@ scdb_vote %>%
 ## Which justices are most likely to agree with with the Court's declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court's outcome declares something unconstitutional.
 
 ```{r}
-#gives me a graph but isn't colored
+#gives me the right graph but isn't colored
 scdb_case %>%
   drop_na(declarationUncon) %>%
   group_by(declarationUncon) %>%
   filter(
-    declarationUncon %in% c(2:4)
+    declarationUncon %in% c(2:4) #or could filter(declarationUncon > 1)
     ) %>%
   select(caseIssuesId, declarationUncon) %>%
-   right_join(scdb_vote, by = "caseIssuesId") %>%
+   right_join(scdb_vote, by = "caseIssuesId") %>% #maybe try inner_join? 
    group_by(justiceName) %>%
-  drop_na(majority, justiceName, declarationUncon) %>%  
+  drop_na(majority, justiceName, declarationUncon) %>%  #would i need this if i'd done inner_join? def ran into some problems earlier
   mutate(yes_unconlgl = (majority == 2)) %>%
   summarize(
     vote_uncon = n(),
@@ -147,13 +136,23 @@ scdb_case %>%
   filter(vote_uncon >= 30) %>%
   arrange(-yes_uncon) %>%
   slice(1:10, 71:80) %>%
-  #do i change something w/ slice here?
-  ggplot(mapping = aes(x = yes_uncon, y = justiceName)) +
+  #do i change something w/ slice here? ASK FOR HELP HERE - HOW TO GET DIFF COLORS (SLICE INTO DIFF TABLES? HOW TO DO SO IN PIPE?)
+  # mutate(type = ifelse(yes_uncon>0.90, 1)) %>% - YUP ASK FOR HELP HERE
+  ggplot(mapping = aes(x = yes_uncon, y = justiceName)) + #would add fill = type to get color if mutate above worked
   geom_bar(stat = 'identity') +
   scale_x_continuous(labels = scales::percent) +
-  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality, Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", caption = "Source: The Supreme Court Database") +
+  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality, Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", caption = "Source: The Supreme Court Database") 
+
  # scale_fill_manual("legend", values = c("A" = "black", "B" = "orange", "C" = "blue"))
-  theme_solarized()
+
+#TA's thinking out loud (ran into errors)
+scdb_case %>%
+    filter(declarationUncon >1) %>%
+    inner_join(scdb_vote) %>%
+ #   drop_na(majority) %>%
+    group_by(justiceName) %%
+    summarize(pct = mean(majority == 1))
+
   
 # doesn't work - end up having bars that are out of order
 unconColorBar = scdb_case %>%
@@ -287,27 +286,74 @@ scdb_case %>%
   geom_line() +
   labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
  scale_y_continuous(labels = scales::percent) +
-  theme_solarized()
+  theme_solarized
+
+#trying to set up for last q's facet
+fullchief_facet = scdb_case %>%
+  drop_na(term, decisionDirection) %>%
+  group_by(term) %>%
+  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
+  summarize(
+    totalconserv_cases = n(),
+    conserv_case1 = mean(conserv_caselgl)
+  ) 
+
+trychief_facet = scdb_case %>%
+  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
+  #mutate(Recode_decDirect = ifelse(decisionDirection == "2", 0, 1)) %>%
+  drop_na(term, decisionDirection, Orderchief) %>%
+   group_by(term, Orderchief) %>%
+  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
+  #drop_na(conserv_caselgl) %>% #unnecessary?
+  summarize(
+    totalconserv_cases = n(),
+    conserv_case = mean(conserv_caselgl, na.rm = TRUE)
+  )
+
+#get error. :/ 
+ggplot() +
+  geom_line(data = trychief_facet, mapping = aes(x = term, y = conserv_case)) +
+ facet_wrap(Orderchief ~ .) +
+  geom_line(data = fullchief_facet, mapping = aes(x = term, y = conserv_case1, color = "red")) %>%
+ scale_y_continuous(labels = scales::percent)
+ 
+ labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+
 ```
 
 ## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
 
 ```{r}
+chief_levels = c("Jay", "Rutledge", "Ellsworth", "Marshall", "Taney", "Chase", "Waite", "Fuller", "White", "Taft", "Hughes", "Stone", "Vinson", "Warren", "Burger", "Rehnquist", "Roberts") 
+
+#this def gives a seemingly ok graph (zoom in on values)
 scdb_case %>%
-  drop_na(term, decisionDirection, chief) %>%
-  group_by(term, chief) %>%
+  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
+  #mutate(Recode_decDirect = ifelse(decisionDirection == "2", 0, 1)) %>%
+  drop_na(term, decisionDirection, Orderchief) %>%
+   group_by(term, Orderchief) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
+  #drop_na(conserv_caselgl) %>% #unnecessary?
   summarize(
     totalconserv_cases = n(),
-    conserv_case = mean(conserv_caselgl)
+    conserv_case = mean(conserv_caselgl, na.rm = TRUE)
   ) %>%
  ggplot(mapping = aes(x = term, y = conserv_case)) +
   geom_line() +
- facet_wrap(chief ~ .) +
+ facet_wrap(Orderchief ~ .) +
   labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
  scale_y_continuous(labels = scales::percent)
 
-#need to order justices by seniority. factor? or use justice (i.e. their ID #) & combine?
+#trying summarize mean - getting diff % values...idk. totalconserv_cases is same w/ both methods tho
+scdb_case %>%
+  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
+  drop_na(term, decisionDirection, Orderchief) %>%
+   group_by(term, Orderchief) %>%
+    mutate(Recode_decDirect = ifelse(decisionDirection == "2", 0, 1)) %>%
+    summarize(
+    totalconserv_cases = n(),
+    conserv_case = mean(Recode_decDirect, na.rm = TRUE)
+  )
 
 ```
 
