@@ -137,13 +137,13 @@ scdb_case %>%
   arrange(-yes_uncon) %>%
   slice(1:10, 71:80) %>%
   #do i change something w/ slice here? ASK FOR HELP HERE - HOW TO GET DIFF COLORS (SLICE INTO DIFF TABLES? HOW TO DO SO IN PIPE?)
-  # mutate(type = ifelse(yes_uncon>0.90, 1)) %>% - YUP ASK FOR HELP HERE
-  ggplot(mapping = aes(x = yes_uncon, y = justiceName)) + #would add fill = type to get color if mutate above worked
-  geom_bar(stat = 'identity') +
+  mutate(type = ifelse(yes_uncon>0.90, "top", "bottom")) %>% #- YUP ASK FOR HELP HERE
+  ggplot(mapping = aes(x = yes_uncon, y = fct_reorder(justiceName, .x = yes_uncon), fill = type)) + #would add fill = type to get color if mutate above worked
+  geom_col() +
   scale_x_continuous(labels = scales::percent) +
-  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality, Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", caption = "Source: The Supreme Court Database") 
-
- # scale_fill_manual("legend", values = c("A" = "black", "B" = "orange", "C" = "blue"))
+  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality \n Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", y = "", caption = "Source: The Supreme Court Database") +
+  theme_clean() +
+    theme(legend.position = "none")
 
 #TA's thinking out loud (ran into errors)
 scdb_case %>%
@@ -152,41 +152,6 @@ scdb_case %>%
  #   drop_na(majority) %>%
     group_by(justiceName) %%
     summarize(pct = mean(majority == 1))
-
-  
-# doesn't work - end up having bars that are out of order
-unconColorBar = scdb_case %>%
-  drop_na(declarationUncon) %>%
-  group_by(declarationUncon) %>%
-  filter(
-    declarationUncon %in% c(2:4)
-    ) %>%
-  select(caseIssuesId, declarationUncon) %>%
-   right_join(scdb_vote, by = "caseIssuesId") %>%
-   group_by(justiceName) %>%
-  drop_na(majority, justiceName, declarationUncon) %>%  
-  mutate(yes_unconlgl = (majority == 2)) %>%
-  summarize(
-    vote_uncon = n(),
-    yes_uncon = mean(yes_unconlgl)
-  ) %>%
-  filter(vote_uncon >= 30) %>%
-  arrange(-yes_uncon) %>%
-  slice(1:10, 71:80)
-
-uncon_colors = c("top 10" = "red", "bottom 10" = "blue")
-
-ggplot() +
-  geom_bar(data = slice(unconColorBar, 1:10), stat = 'identity', mapping = aes(x = yes_uncon, y = justiceName, fill = "top 10")) +
-    geom_bar(data = slice(unconColorBar, 11:20), stat = 'identity', mapping = aes(x = yes_uncon, y = justiceName, fill = "bottom 10")) +
-  scale_x_continuous(labels = scales::percent) +
-  labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality, Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", caption = "Source: The Supreme Court Database") 
- # scale_fill_manual("legend", values = c("A" = "black", "B" = "orange", "C" = "blue"))
-  
-
-#unsure how to color top 10 & bottom 10 differently
-#could try making new var for top 10 & bottom 10...but think pipe won't work 
-#ideally, find a way to make (fill = new var) that distinguishes btwn top 10 & bottom 10. row #?
 ```
 
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
