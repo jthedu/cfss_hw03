@@ -41,7 +41,7 @@ scdb_case %>%
   mutate(V_margin = majVotes-minVotes) %>%
   mutate(onevotelgl = (V_margin == 1)) %>%
   summarize(
-    totalcases = n(),
+   # totalcases = n(),
     onevote = mean(onevotelgl)
   ) %>%
  ggplot(mapping = aes(x = term, y = onevote)) +
@@ -80,7 +80,8 @@ scdb_case %>%
 mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delete if this doesn't work
     group_by(OrderjusticeName, issueArea) %>%
    filter(
-    OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")) %>%
+    OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")
+    ) %>%
   drop_na(direction, issueArea) %>%  ##CAREFUL -- check on why you're getting NAs from issueArea
       mutate(conservlgl = (direction == 1)) %>%
   summarize(
@@ -96,16 +97,31 @@ mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delet
 
 
 ## NORMALLY JOIN DATASETS AS FIRST STEP!!! then filter, group, summarize. would've done lines 79 & 86 first
+#facet by justice
+#issueArea_labels = c("Criminal Procedure", "Civil Rights", "Economic Activity", "Federal Taxation") - unneeded
 
-
-#or maybe only grouping by issues after all & then using facet(JusticeName)? would that mean i have to undo the summarize bit?
-ggplot(mapping = aes(x = conserv, y = issueArea)) + ###FIGURE OUT HOW TO ORDER BY SENIORITY
-  geom_bar(stat = 'identity') +
-  labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", caption = "Source: The Supreme Court Database") +
+scdb_case %>%
+  select(caseIssuesId, issueArea) %>%
+   right_join(scdb_vote, by = "caseIssuesId") %>%
+mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delete if this doesn't work
+   filter(
+    issueArea %in% c(1, 2, 8, 12),
+    OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")
+    ) %>%
+  group_by(OrderjusticeName, issueArea) %>%
+  drop_na(direction, issueArea, OrderjusticeName) %>%  
+      mutate(conservlgl = (direction == 1)) %>%
+  summarize(
+    conserv = mean(conservlgl)
+  ) %>%
+#mutate_at(vars(issueArea), as.factor) %>%
+ mutate(issueArea = factor(issueArea, labels = issueArea_names)) %>% #could've also used labels = issueArea_labels
+  ggplot(mapping = aes(x = conserv, y = fct_rev(issueArea))) +
+  geom_col() +
+  labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = "", caption = "Source: The Supreme Court Database") +
  scale_x_continuous(labels = scales::percent) +
-  facet_wrap(justiceName ~ ., labeller = as_labeller(issueArea_names)) +
+  facet_wrap(OrderjusticeName ~ .) +
   theme_solarized()
-#this above was my attempt at making a graph that was faceted by justice - it didn't work. maybe cuz i'd have to summarize in a diff way (i.e. issueArea, then justiceName). do i have to make all these graphs
 ```
 
 ## In each term, how many of the term's published decisions (decided after oral arguments) were announced in a given month?
@@ -142,7 +158,7 @@ scdb_case %>%
   drop_na(majority, justiceName, declarationUncon) %>%  #would i need this if i'd done inner_join? def ran into some problems earlier
   mutate(yes_unconlgl = (majority == 2)) %>%
   summarize(
-    vote_uncon = n(),
+   # vote_uncon = n(),
     yes_uncon = mean(yes_unconlgl)
   ) %>%
   filter(vote_uncon >= 30) %>%
@@ -230,6 +246,7 @@ ggplot() +
   theme_clean() +
   theme(legend.position="bottom")
 ```
+
 ```{r}
 ### this is me adding another chunk of R code to try things out!!!
 alldecisions1 = scdb_vote %>%
@@ -290,13 +307,12 @@ ggplot(mapping = aes(x = term, y = percentage, color = type)) +
 ## In each term, what percentage of cases were decided in the conservative direction?
 
 ```{r}
-#this 1st chunk is all i need for this q
 scdb_case %>%
   drop_na(term, decisionDirection) %>%
   group_by(term) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
   summarize(
-    totalconserv_cases = n(),
+ #   totalconserv_cases = n(),
     conserv_case = mean(conserv_caselgl)
   ) %>%
  ggplot(mapping = aes(x = term, y = conserv_case)) +
@@ -347,7 +363,6 @@ fullchief_facet = scdb_case %>%
     totalconserv_cases = n(),
     conserv_case1 = mean(conserv_caselgl)
   ) 
-
 trychief_facet = scdb_case %>%
   mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
   #mutate(Recode_decDirect = ifelse(decisionDirection == "2", 0, 1)) %>%
@@ -358,7 +373,6 @@ trychief_facet = scdb_case %>%
     totalconserv_cases = n(),
     conserv_case = mean(conserv_caselgl, na.rm = TRUE)
   )
-
 ggplot() +
  geom_line(data = fullchief_facet, mapping = aes(x = term, y = conserv_case1), alpha = 0.1) +
     geom_line(data = trychief_facet, mapping = aes(x = term, y = conserv_case), color = "red") +
@@ -367,6 +381,15 @@ ggplot() +
    scale_y_continuous(labels = scales::percent) +
   theme_clean() +
   theme(legend.position = "none")
+
+#chief shade - NEED TA HELP FOR THIS
+fullchiefplot <- 
+  ggplot(fullchief_facet, mapping = aes(x = term, y = conserv_case1)) +
+  geom_line()
+
+shadeplotrange <- range(fullchief_facet$conserv_case1)
+fullchiefplot <- fullchiefplot + geom_rect(aes(NULL, NULL, xmin = start, xmax = end, fill = chief), ymin = shadeplotrange[1], ymax = shadeplotrange[2], data = fullchief_facet)
+fullchiefplot
 
 ```
 
