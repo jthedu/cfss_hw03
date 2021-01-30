@@ -15,24 +15,28 @@ library(ggthemes)
 library('scales')
 library(forcats)
 
+theme_set(theme_solarized())
+
 # load data
 scdb_case <- read_csv("data/scdb-case.csv")
 #View(scdb_case)
-#, col_types = cols(sctCite = col_character())
-#can docket be a character? soln for this 1st part leaves sctCite alone as a logical object
 
 scdb_vote <- read_csv("data/scdb-vote.csv")
 #View(scdb_vote)
+
+## NORMALLY JOIN DATASETS AS FIRST STEP!!! then filter, group, summarize. would've done lines 79 & 86 first
+
 ```
 
 ## Recode variables as you find necessary
-
+I decided not to recode variables at the beginning. If I need to recode anything for a question, I'll do it within the assigned code chunk.
 ```{r}
-scdb_vote %>%
-mutate(recode_direction = direction-1)
+
 ```
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
+**Note:** Whenever I mutate a new variable with "lgl" as a suffix, that's a note to myself that I'm creating a logical variable (which I then use to find a %). For most of this HW, I prefer mutating a new logical var instead of mutating a recoded var, but I do mutate a recoded variable in Q8 to show that these 2 methods give me the same answer.
+**Also,** throughout my mutation of logical/recoded variables in this HW, I often summarize to find the total counts alongside the mean (i.e. the percentages). For most questions, the total counts aren't needed for the answer, but I've kept them in because they are useful in checking my work.
 
 ```{r}
 scdb_case %>%
@@ -47,10 +51,7 @@ scdb_case %>%
  ggplot(mapping = aes(x = term, y = onevote)) +
   geom_line() +
   labs(title = "Percent of U.S. Supreme Court cases decided by 1-vote margin", x = "Term", y = "Percent of total cases decided", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent) +
-  theme_solarized()
-
-#could ask abt faster way to do this...but this does give me what i need
+ scale_y_continuous(labels = scales::percent) 
 ```
 
 ## For justices [currently serving on the Supreme Court](https://www.supremecourt.gov/about/biographies.aspx), how often have they voted in the conservative direction in cases involving criminal procedure, civil rights, economic activity, and federal taxation?
@@ -68,7 +69,8 @@ issueArea_names <- c(
                                         )
 justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh") 
 
-#actual good stuff that WORKS
+#facet by issueArea 
+#note: this method is not as efficient as my "facet by justiceName" chunk below, but I wanted to keep this code since it goes through my thought process step-by-step
 scdb_case %>%
   drop_na(issueArea) %>%
   group_by(issueArea) %>%
@@ -77,12 +79,12 @@ scdb_case %>%
     ) %>%
   select(caseIssuesId, issueArea) %>%
    right_join(scdb_vote, by = "caseIssuesId") %>%
-mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delete if this doesn't work
+mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% 
     group_by(OrderjusticeName, issueArea) %>%
    filter(
     OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")
     ) %>%
-  drop_na(direction, issueArea) %>%  ##CAREFUL -- check on why you're getting NAs from issueArea
+  drop_na(direction, issueArea) %>%  
       mutate(conservlgl = (direction == 1)) %>%
   summarize(
     totalvotes = n(),
@@ -92,36 +94,29 @@ mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delet
   geom_bar(stat = 'identity') +
   labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = " ", caption = "Source: The Supreme Court Database") +
  scale_x_continuous(labels = scales::percent) +
-  facet_wrap(issueArea ~ ., labeller = as_labeller(issueArea_names)) +
-  theme_solarized()
+  facet_wrap(issueArea ~ ., labeller = as_labeller(issueArea_names)) 
 
-
-## NORMALLY JOIN DATASETS AS FIRST STEP!!! then filter, group, summarize. would've done lines 79 & 86 first
 #facet by justice
-#issueArea_labels = c("Criminal Procedure", "Civil Rights", "Economic Activity", "Federal Taxation") - unneeded
-
 scdb_case %>%
   select(caseIssuesId, issueArea) %>%
    right_join(scdb_vote, by = "caseIssuesId") %>%
 mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delete if this doesn't work
-   filter(
+  drop_na(direction, issueArea, OrderjusticeName) %>%  
+     filter(
     issueArea %in% c(1, 2, 8, 12),
     OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")
     ) %>%
   group_by(OrderjusticeName, issueArea) %>%
-  drop_na(direction, issueArea, OrderjusticeName) %>%  
       mutate(conservlgl = (direction == 1)) %>%
   summarize(
     conserv = mean(conservlgl)
   ) %>%
-#mutate_at(vars(issueArea), as.factor) %>%
- mutate(issueArea = factor(issueArea, labels = issueArea_names)) %>% #could've also used labels = issueArea_labels
+ mutate(issueArea = factor(issueArea, labels = issueArea_names)) %>%
   ggplot(mapping = aes(x = conserv, y = fct_rev(issueArea))) +
   geom_col() +
   labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = "", caption = "Source: The Supreme Court Database") +
  scale_x_continuous(labels = scales::percent) +
-  facet_wrap(OrderjusticeName ~ .) +
-  theme_solarized()
+  facet_wrap(OrderjusticeName ~ .) 
 ```
 
 ## In each term, how many of the term's published decisions (decided after oral arguments) were announced in a given month?
@@ -139,26 +134,24 @@ scdb_case %>%
   mutate(month_announce = factor(month_announce, levels = scotus_calendar)) %>%
   ggplot() +
     geom_boxplot(mapping = aes(x = n, y = fct_rev(month_announce))) +
-  labs(title = "U.S. Supreme Court", subtitle = "Number of decisions announced post-oral arguments per month, by term", x = "Number of decisions announced in a term-month", y = "", caption = "Source: The Supreme Court Database") +
-  theme_solarized()
+  labs(title = "U.S. Supreme Court", subtitle = "Number of decisions announced post-oral arguments per month, by term", x = "Number of decisions announced in a term-month", y = "", caption = "Source: The Supreme Court Database") 
 ```
 
 ## Which justices are most likely to agree with with the Court's declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court's outcome declares something unconstitutional.
 
 ```{r}
 scdb_case %>%
-  drop_na(declarationUncon) %>%
   group_by(declarationUncon) %>%
   filter(
-    declarationUncon %in% c(2:4) #or could filter(declarationUncon > 1)
+    declarationUncon > 1
     ) %>%
   select(caseIssuesId, declarationUncon) %>%
-   right_join(scdb_vote, by = "caseIssuesId") %>% #maybe try inner_join? 
+   right_join(scdb_vote, by = "caseIssuesId") %>%  
    group_by(justiceName) %>%
-  drop_na(majority, justiceName, declarationUncon) %>%  #would i need this if i'd done inner_join? def ran into some problems earlier
+  drop_na(majority, justiceName, declarationUncon) %>%  
   mutate(yes_unconlgl = (majority == 2)) %>%
   summarize(
-   # vote_uncon = n(),
+    vote_uncon = n(),
     yes_uncon = mean(yes_unconlgl)
   ) %>%
   filter(vote_uncon >= 30) %>%
@@ -169,16 +162,8 @@ scdb_case %>%
   geom_col() +
   scale_x_continuous(labels = scales::percent) +
   labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality \n Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", y = "", caption = "Source: The Supreme Court Database") +
-  theme_clean() +
+  theme_bw() +
     theme(legend.position = "none")
-
-#TA's thinking out loud (ran into errors)
-scdb_case %>%
-    filter(declarationUncon >1) %>%
-    inner_join(scdb_vote) %>%
- #   drop_na(majority) %>%
-    group_by(justiceName) %%
-    summarize(pct = mean(majority == 1))
 ```
 
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
@@ -198,8 +183,7 @@ scdb_vote %>%
  ggplot(mapping = aes(x = term, y = Scalia_maj)) +
   geom_line() +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent) +
-  theme_solarized()
+ scale_y_continuous(labels = scales::percent) 
 ```
 
 ## Create a graph similar to above that adds a second component which compares the percentage for all cases versus non-unanimous cases (i.e. there was at least one dissenting vote)
@@ -219,23 +203,22 @@ alldecisions = scdb_vote %>%
 
 nonall_decisions =  
   scdb_case %>%
-  drop_na(minVotes) %>%
-  filter(minVotes != "0") %>%
   select(caseIssuesId, minVotes) %>%
   right_join(scdb_vote, by = "caseIssuesId") %>%
-    filter(
+  drop_na(minVotes, majority, justiceName, term) %>%
+  filter(
+    minVotes != "0",
     justiceName == "AScalia"
     ) %>%
   group_by(term) %>%
-  drop_na(majority, justiceName, term, minVotes) %>%  
   mutate(dis_Scalia_majlgl = (majority == 2)) %>%
   summarize(
-    dis_totalScalia_maj = n(),
+#    dis_totalScalia_maj = n(),
     dis_Scalia_maj = mean(dis_Scalia_majlgl)
-  )
+  ) 
 
-#w/ 2 dataframes
-Scaliacolors <- c("All decisions" = "red", "Non-unanimous decisions" = "blue")
+#plotting w/ 2 dataframes
+Scaliacolors <- c("All decisions" = "blue", "Non-unanimous decisions" = "red")
 
 ggplot() +
   geom_line(data = alldecisions, mapping = aes(x = term, y = Scalia_maj, color = "All decisions")) +
@@ -243,64 +226,19 @@ ggplot() +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
   scale_color_manual(values = Scaliacolors) +
  scale_y_continuous(labels = scales::percent) +
-  theme_clean() +
-  theme(legend.position="bottom")
-```
-
-```{r}
-### this is me adding another chunk of R code to try things out!!!
-alldecisions1 = scdb_vote %>%
-    filter(
-    justiceName == "AScalia"
-    ) %>%
-  group_by(term) %>%
-  drop_na(majority, justiceName, term) %>%  
-  mutate(Scalia_majlgl = (majority == 2)) %>%
-  summarize(
- #   totalScalia_maj = n(),
-    Scalia_maj = mean(Scalia_majlgl)
-  ) 
-
-nonall_decisions1 =  
-  scdb_case %>%
-  drop_na(minVotes) %>%
-  filter(minVotes != "0") %>%
-  select(caseIssuesId, minVotes) %>%
-  right_join(scdb_vote, by = "caseIssuesId") %>%
-    filter(
-    justiceName == "AScalia"
-    ) %>%
-  group_by(term) %>%
-  drop_na(majority, justiceName, term, minVotes) %>%  
-  mutate(dis_Scalia_majlgl = (majority == 2)) %>%
-  summarize(
-#    dis_totalScalia_maj = n(),
-    dis_Scalia_maj = mean(dis_Scalia_majlgl)
-  ) 
-
-# single dataframe
-Scalia_2lines <- alldecisions1 %>%
-  inner_join(nonall_decisions1, by = "term") %>%
-  pivot_longer(cols = c(Scalia_maj, dis_Scalia_maj), names_to = "type", values_to = "percentage") 
-
-ggplot(data = Scalia_2lines, mapping = aes(x = term, y = percentage, color = type)) +
-  geom_line() +
-  labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
- scale_y_continuous(labels = scales::percent) +
-  scale_color_discrete(labels = c("Non-unanimous cases", "All cases")) +
-   theme_clean() +
+  theme_bw() +
   theme(legend.position="bottom")
 
-#piped - same as above, just w/ pipe
-alldecisions1 %>%
-  inner_join(nonall_decisions1, by = "term") %>%
+#plotting w/ 1 dataframe
+alldecisions %>%
+  inner_join(nonall_decisions, by = "term") %>%
   pivot_longer(cols = c(Scalia_maj, dis_Scalia_maj), names_to = "type", values_to = "percentage") %>%
 ggplot(mapping = aes(x = term, y = percentage, color = type)) +
   geom_line() +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
  scale_y_continuous(labels = scales::percent) +
-  scale_color_discrete(labels = c("Non-unanimous cases", "All cases")) +
-   theme_clean() +
+  scale_color_discrete(labels = c("Non-unanimous decisions", "All decisions")) +
+   theme_bw() +
   theme(legend.position="bottom")
 ```
 
@@ -318,11 +256,12 @@ scdb_case %>%
  ggplot(mapping = aes(x = term, y = conserv_case)) +
   geom_line() +
   labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent) +
-  theme_solarized()
+ scale_y_continuous(labels = scales::percent) 
 ```
 
 ## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
+**Note:** This time, to find % for the basic facet graph (i.e. you ony see a justice's individual term), I mutated a recoded variable instead of mutating a new logical variable (which has been my preferred method throughout this HW). 
+*I can still find % with a logical variable* (& I do so under the trychief_facet code chunk, when finding the facet graph with opaque all terms), but I wanted to show that I can use this method as well - and that these 2 methods give me the same answer.
 
 ```{r}
 chief_levels = c("Jay", "Rutledge", "Ellsworth", "Marshall", "Taney", "Chase", "Waite", "Fuller", "White", "Taft", "Hughes", "Stone", "Vinson", "Warren", "Burger", "Rehnquist", "Roberts") 
@@ -332,45 +271,34 @@ scdb_case %>%
   mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
   drop_na(term, decisionDirection, Orderchief) %>%
    group_by(term, Orderchief) %>%
-  mutate(conserv_caselgl = (decisionDirection == 1)) %>%
-  summarize(
-    #totalconserv_cases = n(),
-    conserv_case = mean(conserv_caselgl, na.rm = TRUE)
-    ) %>% 
-  ggplot(mapping = aes(x = term, y = conserv_case)) +
-  geom_line() +
- facet_wrap(Orderchief ~ .) +
-  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent)
-
-#summarize mean method - works either way scdb_case %>%
-  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
-  drop_na(term, decisionDirection, Orderchief) %>%
-   group_by(term, Orderchief) %>%
     mutate(Recode_decDirect = ifelse(decisionDirection != "1", 0, 1)) %>% #do this != to ensure we account for unspecified
     summarize(
 #    totalconserv_cases = n(),
     conserv_case = mean(Recode_decDirect, na.rm = TRUE)
-  )
-### CAN USE AS BASE FOR SWITCHING OTHER THINGS TO RECODING IF YOU WANT
-  
+  ) %>%
+  ggplot(mapping = aes(x = term, y = conserv_case)) +
+  geom_line() +
+ facet_wrap(Orderchief ~ .) +
+  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent) +
+  theme_bw()
+
 #facet graph (with opaque all terms)
 fullchief_facet = scdb_case %>%
   drop_na(term, decisionDirection) %>%
   group_by(term, chief) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
   summarize(
-    totalconserv_cases = n(),
+#    totalconserv_cases = n(),
     conserv_case1 = mean(conserv_caselgl)
   ) 
 trychief_facet = scdb_case %>%
   mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
-  #mutate(Recode_decDirect = ifelse(decisionDirection == "2", 0, 1)) %>%
   drop_na(term, decisionDirection, Orderchief) %>%
    group_by(term, Orderchief) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
   summarize(
-    totalconserv_cases = n(),
+#    totalconserv_cases = n(),
     conserv_case = mean(conserv_caselgl, na.rm = TRUE)
   )
 ggplot() +
@@ -379,7 +307,7 @@ ggplot() +
   facet_wrap(Orderchief ~ .) +
  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
    scale_y_continuous(labels = scales::percent) +
-  theme_clean() +
+  theme_bw() +
   theme(legend.position = "none")
 
 #chief shade - NEED TA HELP FOR THIS
