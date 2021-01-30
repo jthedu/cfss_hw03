@@ -23,13 +23,10 @@ scdb_case <- read_csv("data/scdb-case.csv")
 
 scdb_vote <- read_csv("data/scdb-vote.csv")
 #View(scdb_vote)
-
-## NORMALLY JOIN DATASETS AS FIRST STEP!!! then filter, group, summarize. would've done lines 79 & 86 first
-
 ```
 
 ## Recode variables as you find necessary
-I decided not to recode variables at the beginning. If I need to recode anything for a question, I'll do it within the assigned code chunk.
+I decided not to recode variables at the beginning. If I needed to recode anything for a question, I'll did it within the assigned code chunk.
 ```{r}
 
 ```
@@ -67,7 +64,9 @@ issueArea_names <- c(
                     `8` = "Economic Activity",
                     `12` = "Federal Taxation"
                                         )
-justice_levels = c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh") 
+justice_levels <- c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh") 
+#This dataset is for the 1791-2019 SCOTUS terms, which each start in October. 
+#Though she is currently serving, Amy Coney Barrett isn't in this dataset (she was sworn in Oct. 2020) so I left her out.
 
 #facet by issueArea 
 #note: this method is not as efficient as my "facet by justiceName" chunk below, but I wanted to keep this code since it goes through my thought process step-by-step
@@ -189,7 +188,7 @@ scdb_vote %>%
 ## Create a graph similar to above that adds a second component which compares the percentage for all cases versus non-unanimous cases (i.e. there was at least one dissenting vote)
 
 ```{r}
-alldecisions = scdb_vote %>%
+alldecisions <- scdb_vote %>%
     filter(
     justiceName == "AScalia"
     ) %>%
@@ -201,7 +200,7 @@ alldecisions = scdb_vote %>%
     Scalia_maj = mean(Scalia_majlgl)
   )
 
-nonall_decisions =  
+nonall_decisions <-  
   scdb_case %>%
   select(caseIssuesId, minVotes) %>%
   right_join(scdb_vote, by = "caseIssuesId") %>%
@@ -284,15 +283,15 @@ scdb_case %>%
   theme_bw()
 
 #facet graph (with opaque all terms)
-fullchief_facet = scdb_case %>%
+fullchief_facet <- scdb_case %>%
   drop_na(term, decisionDirection) %>%
-  group_by(term, chief) %>%
+  group_by(term, chief) %>% #we keep this as chief & don't switch to Orderchief so that faceting by Orderchief works later
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
   summarize(
 #    totalconserv_cases = n(),
     conserv_case1 = mean(conserv_caselgl)
   ) 
-trychief_facet = scdb_case %>%
+trychief_facet <- scdb_case %>%
   mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
   drop_na(term, decisionDirection, Orderchief) %>%
    group_by(term, Orderchief) %>%
@@ -310,15 +309,28 @@ ggplot() +
   theme_bw() +
   theme(legend.position = "none")
 
-#chief shade - NEED TA HELP FOR THIS
-fullchiefplot <- 
-  ggplot(fullchief_facet, mapping = aes(x = term, y = conserv_case1)) +
-  geom_line()
+#chief shade graph
+##to get % for all terms
+trychief_facetline <- trychief_facet %>% 
+  ggplot(mapping = aes(x = term, y = conserv_case)) +
+  geom_line() +
+  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+ scale_y_continuous(labels = scales::percent) 
 
-shadeplotrange <- range(fullchief_facet$conserv_case1)
-fullchiefplot <- fullchiefplot + geom_rect(aes(NULL, NULL, xmin = start, xmax = end, fill = chief), ymin = shadeplotrange[1], ymax = shadeplotrange[2], data = fullchief_facet)
-fullchiefplot
+##to get shading by Chief Justice
+chief_facet <- scdb_case %>%
+ mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
+  distinct(term, Orderchief) %>%
+  group_by(Orderchief) %>%
+  mutate(xmin = min(term), xmax = max(term)) %>%
+  select(-term) %>%
+  distinct() %>%
+  mutate(ymin = min(trychief_facet$conserv_case), ymax = max(trychief_facet$conserv_case))
 
+trychief_facetline + 
+  geom_rect(data = chief_facet, mapping = aes(NULL, NULL, xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = Orderchief), alpha = 0.2) +
+  labs(fill = "Chief Justice") +
+  theme_bw()
 ```
 
 ## Session info
