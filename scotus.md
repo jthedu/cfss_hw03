@@ -412,6 +412,7 @@ ggplot() +
   scale_color_manual(values = Scaliacolors) +
  scale_y_continuous(labels = scales::percent) +
   theme_bw() +
+  theme(legend.title = element_blank()) +
   theme(legend.position="bottom")
 ```
 
@@ -428,7 +429,8 @@ ggplot(mapping = aes(x = term, y = percentage, color = type)) +
  scale_y_continuous(labels = scales::percent) +
   scale_color_discrete(labels = c("Non-unanimous decisions", "All decisions")) +
    theme_bw() +
-  theme(legend.position="bottom")
+  theme(legend.title = element_blank()) +
+  theme(legend.position="bottom") 
 ```
 
 ![](scotus_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->

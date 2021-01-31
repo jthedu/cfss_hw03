@@ -230,6 +230,7 @@ ggplot() +
   scale_color_manual(values = Scaliacolors) +
  scale_y_continuous(labels = scales::percent) +
   theme_bw() +
+  theme(legend.title = element_blank()) +
   theme(legend.position="bottom")
 
 #plotting w/ 1 dataframe
@@ -242,7 +243,8 @@ ggplot(mapping = aes(x = term, y = percentage, color = type)) +
  scale_y_continuous(labels = scales::percent) +
   scale_color_discrete(labels = c("Non-unanimous decisions", "All decisions")) +
    theme_bw() +
-  theme(legend.position="bottom")
+  theme(legend.title = element_blank()) +
+  theme(legend.position="bottom") 
 ```
 
 ## In each term, what percentage of cases were decided in the conservative direction?
