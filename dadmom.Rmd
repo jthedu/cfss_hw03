@@ -33,7 +33,6 @@ pivot_longer(cols = -famid, names_to = "parent", values_to = "values", values_tr
 #TA's fancy method
 dadmom %>%
   pivot_longer(cols = -famid, names_to = c(".value", "type"), names_sep = -1)
-#sentinel - look up for more info
 ```
 
 ## Session info

@@ -1,6 +1,9 @@
 # Homework 03: Exploring and wrangling data
 
-See detailed instructions for this homework assignment [here](https://cfss.uchicago.edu/homework/wrangle-data/).
+Here is my [dadmom source code](dadmom.Rmd) & my [dadmom rendered report](dadmom.md).
+Here also is my [scotus source code](scotus.Rmd) & my [scotus rendered report](scotus.md).
+
+Detailed instructions for this homework assignment are [here](https://cfss.uchicago.edu/homework/explore-data/).
 
 ## Required packages
 
@@ -30,7 +33,3 @@ For your benefit, I have provided starter RMarkdown documents for each part of t
 
 * [Tidying `dadmom` solution](demo/dadmom_solution.md)
 * [SCOTUS solution](demo/scotus_solution.md)
-
-These files do not contain any of the code necessary to complete the homework, but do show you output from R for potential solutions. Your solutions do not need to perfectly replicate these tables and graphs, but are a good starting point.
-
-Follow instructions on [homework workflow](https://cfss.uchicago.edu/faq/homework-guidelines/#homework-workflow) to submit your homework. As part of the pull request, you're encouraged to reflect on what was hard/easy, problems you solved, helpful tutorials you read, etc.

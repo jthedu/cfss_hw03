@@ -19,20 +19,21 @@ theme_set(theme_solarized())
 
 # load data
 scdb_case <- read_csv("data/scdb-case.csv")
-#View(scdb_case)
+scdb_case
 
 scdb_vote <- read_csv("data/scdb-vote.csv")
-#View(scdb_vote)
+scdb_vote
 ```
 
 ## Recode variables as you find necessary
-I decided not to recode variables at the beginning. If I needed to recode anything for a question, I'll did it within the assigned code chunk.
+I decided not to recode variables at the beginning. If I needed to recode anything for a question, I did it within the assigned code chunk.
 ```{r}
 
 ```
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
 **Note:** Whenever I mutate a new variable with "lgl" as a suffix, that's a note to myself that I'm creating a logical variable (which I then use to find a %). For most of this HW, I prefer mutating a new logical var instead of mutating a recoded var, but I do mutate a recoded variable in Q8 to show that these 2 methods give me the same answer.
+
 **Also,** throughout my mutation of logical/recoded variables in this HW, I often summarize to find the total counts alongside the mean (i.e. the percentages). For most questions, the total counts aren't needed for the answer, but I've kept them in because they are useful in checking my work.
 
 ```{r}
@@ -121,19 +122,22 @@ mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delet
 ## In each term, how many of the term's published decisions (decided after oral arguments) were announced in a given month?
 
 ```{r}
-scotus_calendar = c("Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep")
+trymonth = c(` ` = month.name) 
 
 scdb_case %>%
   mutate(date_parsed = mdy(dateDecision)) %>%
-  mutate(month_announce = month(date_parsed, label = TRUE)) %>%
-  drop_na(term, month_announce, decisionType) %>%
+  mutate(month_announce = month(date_parsed)) %>%
+  mutate(month_announce = factor(month_announce, labels = trymonth)) %>%
+    drop_na(term, month_announce, decisionType) %>%
+#  select(term, month_announce, decisionType) %>%
   filter(decisionType %in% c(1, 6, 7)) %>% #filtering only for cases that were orally argued
   group_by(term, month_announce) %>%
-  count(month_announce) %>%
-  mutate(month_announce = factor(month_announce, levels = scotus_calendar)) %>%
-  ggplot() +
+    count(month_announce) %>%
+  mutate(month_announce = factor(month_announce, levels = month.name)) %>%
+    mutate(month_announce = fct_shift(month_announce, n = -3)) %>%
+ ggplot() +
     geom_boxplot(mapping = aes(x = n, y = fct_rev(month_announce))) +
-  labs(title = "U.S. Supreme Court", subtitle = "Number of decisions announced post-oral arguments per month, by term", x = "Number of decisions announced in a term-month", y = "", caption = "Source: The Supreme Court Database") 
+    labs(title = "U.S. Supreme Court", subtitle = "Number of decisions announced post-oral arguments per month, by term", x = "Number of decisions announced in a term-month", y = "", caption = "Source: The Supreme Court Database") 
 ```
 
 ## Which justices are most likely to agree with with the Court's declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court's outcome declares something unconstitutional.
@@ -260,6 +264,7 @@ scdb_case %>%
 
 ## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
 **Note:** This time, to find % for the basic facet graph (i.e. you ony see a justice's individual term), I mutated a recoded variable instead of mutating a new logical variable (which has been my preferred method throughout this HW). 
+
 *I can still find % with a logical variable* (& I do so under the trychief_facet code chunk, when finding the facet graph with opaque all terms), but I wanted to show that I can use this method as well - and that these 2 methods give me the same answer.
 
 ```{r}
