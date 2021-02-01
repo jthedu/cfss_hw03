@@ -51,7 +51,7 @@ library('scales')
 ``` r
 library(forcats)
 
-theme_set(theme_solarized())
+theme_set(theme_minimal())
 
 # load data
 scdb_case <- read_csv("data/scdb-case.csv")
@@ -168,7 +168,8 @@ scdb_vote
 ## Recode variables as you find necessary
 
 I decided not to recode variables at the beginning. If I needed to
-recode anything for a question, I did it within the assigned code chunk.
+recode anything for a question, I did it within the assigned code chunk
+so I could easily remember what I was doing without scrolling up.
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
 
@@ -188,8 +189,9 @@ checking my work.
 scdb_case %>%
   drop_na(term, majVotes, minVotes) %>%
   group_by(term) %>%
-  mutate(V_margin = majVotes-minVotes) %>%
+  mutate(V_margin = majVotes-minVotes) %>% 
   mutate(onevotelgl = (V_margin == 1)) %>%
+  # I could've combined the 2 mutate lines, but I kept them distinct for clarity
   summarize(
    # totalcases = n(),
     onevote = mean(onevotelgl)
@@ -204,84 +206,74 @@ scdb_case %>%
 
 ![](scotus_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-## For justices [currently serving on the Supreme Court](https://www.supremecourt.gov/about/biographies.aspx), how often have they voted in the conservative direction in cases involving criminal procedure, civil rights, economic activity, and federal taxation?
+As time went on, increasingly more cases seemed to be decided by a
+1-vote margin. I’d be curious to see the connection between this and
+increasing political polarization.
 
-Organize the resulting graph by justice in descending order of
-seniority. (Note that the chief justice is always considered the most
-senior member of the court, regardless of appointment date.)
+## For justices [currently serving on the Supreme Court](https://www.supremecourt.gov/about/biographies.aspx), how often have they voted in the conservative direction in cases involving criminal procedure, civil rights, economic activity, and federal taxation? Organize the resulting graph by justice in descending order of seniority. (Note that the chief justice is always considered the most senior member of the court, regardless of appointment date.)
+
+This dataset is for the 1791-2019 SCOTUS terms, which each start in
+October. Though she is currently serving, Amy Coney Barrett isn’t in
+this dataset (she was sworn in Oct. 2020), so I left her out when
+creating my levels & filtering.
 
 ``` r
 require(forcats)
 
-issueArea_names <- c(
-                    `1` = "Criminal Procedure",
+issueArea_names <- c(`1` = "Criminal Procedure",
                     `2` = "Civil Rights",
                     `8` = "Economic Activity",
-                    `12` = "Federal Taxation"
-                                        )
-justice_levels <- c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh") 
-#This dataset is for the 1791-2019 SCOTUS terms, which each start in October. 
-#Though she is currently serving, Amy Coney Barrett isn't in this dataset (she was sworn in Oct. 2020) so I left her out.
+                    `12` = "Federal Taxation")
 
-#facet by issueArea 
-#note: this method is not as efficient as my "facet by justiceName" chunk below, but I wanted to keep this code since it goes through my thought process step-by-step
-scdb_case %>%
-  drop_na(issueArea) %>%
-  group_by(issueArea) %>%
-  filter(
-    issueArea %in% c(1, 2, 8, 12)
-    ) %>%
+justice_levels <- c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh") 
+
+scdb_vote <- scdb_vote %>%
+  mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) 
+
+#simplified version of finding %s
+issue_justice <- scdb_case %>%
   select(caseIssuesId, issueArea) %>%
-   right_join(scdb_vote, by = "caseIssuesId") %>%
-mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% 
-    group_by(OrderjusticeName, issueArea) %>%
-   filter(
-    OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")
+  right_join(scdb_vote, by = "caseIssuesId") %>%
+  drop_na(direction, issueArea, OrderjusticeName) %>%  
+     filter(
+    issueArea %in% c(1, 2, 8, 12),
+    OrderjusticeName %in% justice_levels
     ) %>%
-  drop_na(direction, issueArea) %>%  
+  group_by(OrderjusticeName, issueArea) %>%
       mutate(conservlgl = (direction == 1)) %>%
-  summarize(
-    totalvotes = n(),
-    conserv = mean(conservlgl)
-  ) %>%
-  ggplot(mapping = aes(x = conserv, y = fct_rev(OrderjusticeName))) + 
-  geom_bar(stat = 'identity') +
-  labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = " ", caption = "Source: The Supreme Court Database") +
- scale_x_continuous(labels = scales::percent) +
-  facet_wrap(issueArea ~ ., labeller = as_labeller(issueArea_names)) 
+  summarize(conserv = mean(conservlgl)) %>%
+  mutate(issueArea = factor(issueArea, labels = issueArea_names))
 ```
 
     ## `summarise()` regrouping output by 'OrderjusticeName' (override with `.groups` argument)
+
+``` r
+#facet by issue area
+issue_justice %>%
+  ggplot(mapping = aes(x = conserv, y = fct_rev(OrderjusticeName))) +
+    geom_col() +
+    labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = " ", caption = "Source: The Supreme Court Database") +
+    scale_x_continuous(labels = scales::percent) +
+    facet_wrap(issueArea ~ .)
+```
 
 ![](scotus_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 #facet by justice
-scdb_case %>%
-  select(caseIssuesId, issueArea) %>%
-   right_join(scdb_vote, by = "caseIssuesId") %>%
-mutate(OrderjusticeName = fct_relevel(justiceName, justice_levels)) %>% ###delete if this doesn't work
-  drop_na(direction, issueArea, OrderjusticeName) %>%  
-     filter(
-    issueArea %in% c(1, 2, 8, 12),
-    OrderjusticeName %in% c("JGRoberts", "CThomas", "SGBreyer", "SAAlito", "SSotomayor", "EKagan", "NMGorsuch", "BMKavanaugh")
-    ) %>%
-  group_by(OrderjusticeName, issueArea) %>%
-      mutate(conservlgl = (direction == 1)) %>%
-  summarize(
-    conserv = mean(conservlgl)
-  ) %>%
- mutate(issueArea = factor(issueArea, labels = issueArea_names)) %>%
+issue_justice %>%
   ggplot(mapping = aes(x = conserv, y = fct_rev(issueArea))) +
-  geom_col() +
-  labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = "", caption = "Source: The Supreme Court Database") +
- scale_x_continuous(labels = scales::percent) +
-  facet_wrap(OrderjusticeName ~ .) 
+    geom_col() +
+    labs(title = "US Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Percent of votes cast", y = "", caption = "Source: The Supreme Court Database") +
+    scale_x_continuous(labels = scales::percent) +
+    facet_wrap(OrderjusticeName ~ .) 
 ```
 
-    ## `summarise()` regrouping output by 'OrderjusticeName' (override with `.groups` argument)
-
 ![](scotus_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+
+The current justices seem to cast votes in a conservative direction more
+frequently for Criminal Procedure & Civil Rights. Breyer, Sotomayor, and
+Kagan tend to vote less conservatively than their peers.
 
 ## In each term, how many of the term’s published decisions (decided after oral arguments) were announced in a given month?
 
@@ -292,32 +284,36 @@ scdb_case %>%
   mutate(date_parsed = mdy(dateDecision)) %>%
   mutate(month_announce = month(date_parsed)) %>%
   mutate(month_announce = factor(month_announce, labels = trymonth)) %>%
+  #the above 2 mutate(month_announce = ...) commands could be combined into 1 line, but I think it's clearer to keep them on separate lines
     drop_na(term, month_announce, decisionType) %>%
-#  select(term, month_announce, decisionType) %>%
+#  select(term, month_announce, decisionType) %>% could select for a better view of these intermediate steps
   filter(decisionType %in% c(1, 6, 7)) %>% #filtering only for cases that were orally argued
   group_by(term, month_announce) %>%
     count(month_announce) %>%
   mutate(month_announce = factor(month_announce, levels = month.name)) %>%
-    mutate(month_announce = fct_shift(month_announce, n = -3)) %>%
- ggplot() +
+  mutate(month_announce = fct_shift(month_announce, n = -3)) %>%
+  #again, the above 2 mutate(month_announce) lines could be merged, but I've kept them distinct for clarity
+  ggplot() +
     geom_boxplot(mapping = aes(x = n, y = fct_rev(month_announce))) +
     labs(title = "U.S. Supreme Court", subtitle = "Number of decisions announced post-oral arguments per month, by term", x = "Number of decisions announced in a term-month", y = "", caption = "Source: The Supreme Court Database") 
 ```
 
 ![](scotus_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
+June saw the highest median number of announced decisions after
+post-oral arguments, while August and September saw the lowest median
+(understandably, as the SCOTUS term starts in October of each year, so
+announcements made in Aug. or Sept. would be quite late).
+
 ## Which justices are most likely to agree with with the Court’s declaration that an act of Congress, a state or territorial law, or a municipal ordinance is unconstitutional? Identify all cases where the Court declared something unconstitutional and determine the ten justices who most and least frequently agreed with this outcome as a percentage of all votes cast by the justice in these cases. Exclude any justice with fewer than 30 votes in cases where the Court’s outcome declares something unconstitutional.
 
 ``` r
 scdb_case %>%
-  group_by(declarationUncon) %>%
-  filter(
-    declarationUncon > 1
-    ) %>%
   select(caseIssuesId, declarationUncon) %>%
-   right_join(scdb_vote, by = "caseIssuesId") %>%  
-   group_by(justiceName) %>%
+  right_join(scdb_vote, by = "caseIssuesId") %>%  #used right_join instead of inner_join because it makes more sense in my head
   drop_na(majority, justiceName, declarationUncon) %>%  
+  filter(declarationUncon > 1) %>% 
+  group_by(justiceName) %>%
   mutate(yes_unconlgl = (majority == 2)) %>%
   summarize(
     vote_uncon = n(),
@@ -326,12 +322,11 @@ scdb_case %>%
   filter(vote_uncon >= 30) %>%
   arrange(-yes_uncon) %>%
   slice(1:10, 71:80) %>%
-  mutate(type = ifelse(yes_uncon>0.90, "top", "bottom")) %>% 
+  mutate(type = ifelse(yes_uncon > 0.90, "top", "bottom")) %>% 
   ggplot(mapping = aes(x = yes_uncon, y = fct_reorder(justiceName, .x = yes_uncon), fill = type)) +
   geom_col() +
   scale_x_continuous(labels = scales::percent) +
   labs(title = "U.S. Supreme Court", subtitle = "Agreement with a declaration of unconstitutionality \n Justices most and least frequently in agreement", x = "Percent of votes agreeing with declaration", y = "", caption = "Source: The Supreme Court Database") +
-  theme_bw() +
     theme(legend.position = "none")
 ```
 
@@ -342,46 +337,33 @@ scdb_case %>%
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
 
 ``` r
-scdb_vote %>%
-    filter(
-    justiceName == "AScalia"
-    ) %>%
-  group_by(term) %>%
+alldecisions <- scdb_vote %>%
+  filter(justiceName == "AScalia") %>%
   drop_na(majority, justiceName, term) %>%  
+  group_by(term) %>%
   mutate(Scalia_majlgl = (majority == 2)) %>%
   summarize(
     totalScalia_maj = n(),
     Scalia_maj = mean(Scalia_majlgl)
-  ) %>%
- ggplot(mapping = aes(x = term, y = Scalia_maj)) +
+  ) 
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+``` r
+ggplot(data = alldecisions, mapping = aes(x = term, y = Scalia_maj)) +
   geom_line() +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
  scale_y_continuous(labels = scales::percent) 
 ```
-
-    ## `summarise()` ungrouping output (override with `.groups` argument)
 
 ![](scotus_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ## Create a graph similar to above that adds a second component which compares the percentage for all cases versus non-unanimous cases (i.e. there was at least one dissenting vote)
 
 ``` r
-alldecisions <- scdb_vote %>%
-    filter(
-    justiceName == "AScalia"
-    ) %>%
-  group_by(term) %>%
-  drop_na(majority, justiceName, term) %>%  
-  mutate(Scalia_majlgl = (majority == 2)) %>%
-  summarize(
-    totalScalia_maj = n(),
-    Scalia_maj = mean(Scalia_majlgl)
-  )
-```
+#will use alldecisions dataframe from above
 
-    ## `summarise()` ungrouping output (override with `.groups` argument)
-
-``` r
 nonall_decisions <-  
   scdb_case %>%
   select(caseIssuesId, minVotes) %>%
@@ -407,11 +389,10 @@ Scaliacolors <- c("All decisions" = "blue", "Non-unanimous decisions" = "red")
 
 ggplot() +
   geom_line(data = alldecisions, mapping = aes(x = term, y = Scalia_maj, color = "All decisions")) +
-  geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj, color = "Non-unanimous decisions")) +
+    geom_line(data = nonall_decisions, mapping = aes(x = term, y = dis_Scalia_maj, color = "Non-unanimous decisions")) +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
   scale_color_manual(values = Scaliacolors) +
- scale_y_continuous(labels = scales::percent) +
-  theme_bw() +
+  scale_y_continuous(labels = scales::percent) +
   theme(legend.title = element_blank()) +
   theme(legend.position="bottom")
 ```
@@ -428,7 +409,6 @@ ggplot(mapping = aes(x = term, y = percentage, color = type)) +
   labs(title = "Percent of the time Scalia was in the majority", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database", color = "Legend") +
  scale_y_continuous(labels = scales::percent) +
   scale_color_discrete(labels = c("Non-unanimous decisions", "All decisions")) +
-   theme_bw() +
   theme(legend.title = element_blank()) +
   theme(legend.position="bottom") 
 ```
@@ -456,6 +436,11 @@ scdb_case %>%
 
 ![](scotus_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
+As time has passed, it seems that a greater percentage of decisions are
+made in a conservative direction. The 1950s and 60s seem to have seen a
+smaller %, which makes sense given the civil rights movement and
+consequential decisions like Brown v. Board.
+
 ## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
 
 **Note:** This time, to find % for the basic facet graph (i.e. you ony
@@ -471,9 +456,12 @@ that these 2 methods give me the same answer.
 ``` r
 chief_levels = c("Jay", "Rutledge", "Ellsworth", "Marshall", "Taney", "Chase", "Waite", "Fuller", "White", "Taft", "Hughes", "Stone", "Vinson", "Warren", "Burger", "Rehnquist", "Roberts") 
 
+#adding Orderchief so I don't have to keep doing so throughout
+scdb_case <- scdb_case %>%
+  mutate(Orderchief = fct_relevel(chief, chief_levels)) 
+
 #basic graph (only see justice's individual terms)
 scdb_case %>%
-  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
   drop_na(term, decisionDirection, Orderchief) %>%
    group_by(term, Orderchief) %>%
     mutate(Recode_decDirect = ifelse(decisionDirection != "1", 0, 1)) %>% #do this != to ensure we account for unspecified
@@ -485,8 +473,7 @@ scdb_case %>%
   geom_line() +
  facet_wrap(Orderchief ~ .) +
   labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent) +
-  theme_bw()
+ scale_y_continuous(labels = scales::percent) 
 ```
 
     ## `summarise()` regrouping output by 'term' (override with `.groups` argument)
@@ -509,7 +496,6 @@ fullchief_facet <- scdb_case %>%
 
 ``` r
 trychief_facet <- scdb_case %>%
-  mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
   drop_na(term, decisionDirection, Orderchief) %>%
    group_by(term, Orderchief) %>%
   mutate(conserv_caselgl = (decisionDirection == 1)) %>%
@@ -528,7 +514,6 @@ ggplot() +
   facet_wrap(Orderchief ~ .) +
  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
    scale_y_continuous(labels = scales::percent) +
-  theme_bw() +
   theme(legend.position = "none")
 ```
 
@@ -536,16 +521,15 @@ ggplot() +
 
 ``` r
 #chief shade graph
-##to get % for all terms
+##to get % for all terms line
 trychief_facetline <- trychief_facet %>% 
   ggplot(mapping = aes(x = term, y = conserv_case)) +
-  geom_line() +
-  labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
- scale_y_continuous(labels = scales::percent) 
+    geom_line() +
+    labs(title = "U.S. Supreme Court", subtitle = "Percent of cases decided in a conservative direction", x = "Term", y = "Percent of total decisions", caption = "Source: The Supreme Court Database") +
+    scale_y_continuous(labels = scales::percent) 
 
 ##to get shading by Chief Justice
 chief_facet <- scdb_case %>%
- mutate(Orderchief = fct_relevel(chief, chief_levels)) %>%
   distinct(term, Orderchief) %>%
   group_by(Orderchief) %>%
   mutate(xmin = min(term), xmax = max(term)) %>%
@@ -554,9 +538,8 @@ chief_facet <- scdb_case %>%
   mutate(ymin = min(trychief_facet$conserv_case), ymax = max(trychief_facet$conserv_case))
 
 trychief_facetline + 
-  geom_rect(data = chief_facet, mapping = aes(NULL, NULL, xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = Orderchief), alpha = 0.2) +
-  labs(fill = "Chief Justice") +
-  theme_bw()
+  geom_rect(data = chief_facet, mapping = aes(NULL, NULL, xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = Orderchief), alpha = 0.3) +
+  labs(fill = "Chief Justice") 
 ```
 
 ![](scotus_files/figure-gfm/unnamed-chunk-10-3.png)<!-- -->
@@ -577,7 +560,7 @@ devtools::session_info()
     ##  collate  en_US.UTF-8                         
     ##  ctype    en_US.UTF-8                         
     ##  tz       America/Chicago                     
-    ##  date     2021-01-30                          
+    ##  date     2021-02-01                          
     ## 
     ## ─ Packages ───────────────────────────────────────────────────────────────────
     ##  package     * version date       lib source        
