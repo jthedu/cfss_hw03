@@ -15,6 +15,13 @@ You should have the following packages installed:
 library(tidyverse)
 library(gapminder)
 library(rcfss)
+
+library(readr)
+library(lubridate)
+library(ggthemes)
+library('scales')
+library(forcats)
+
 ```
 
 [`rcfss`](https://github.com/uc-cfss/rcfss) can be installed from GitHub using the command:
